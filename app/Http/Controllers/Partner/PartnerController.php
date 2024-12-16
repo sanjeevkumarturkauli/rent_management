@@ -2,10 +2,41 @@
 
 namespace App\Http\Controllers\Partner;
 
-use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class PartnerController extends Controller
 {
-    //
+    public function create(Request $request)
+    {
+        // If validation fails, return a detailed error message
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors(), 'message' => 'Validation failed'], 422);
+        }
+
+        // Create the owner (user) with the given validated data
+        $owner = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        // Check if the "owner" role exists, and create it if not
+        $role = Role::firstOrCreate(['name' => 'partner']);
+
+        // Assign the role to the user
+        $owner->assignRole($role);
+
+        return response()->json(['status' => true, 'message' => 'Partner created successfully!', 'data' => $owner,], 201);
+    }
 }
